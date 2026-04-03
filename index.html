@@ -94,6 +94,7 @@
     }
 
     .dropzone:hover,
+    .dropzone:focus-visible,
     .dropzone.dragover {
       border-color: var(--accent);
       transform: translateY(-1px);
@@ -263,6 +264,16 @@
       text-decoration: none;
     }
 
+    code {
+      padding: 2px 6px;
+      border-radius: 8px;
+      background: rgba(255,255,255,.06);
+      border: 1px solid var(--line);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 12px;
+      color: var(--text);
+    }
+
     .badge {
       display: inline-flex;
       align-items: center;
@@ -307,10 +318,13 @@
 
     <div class="grid">
       <section class="card section">
-        <label class="dropzone" id="dropzone" for="fileInput">
+        <div class="dropzone" id="dropzone" role="button" tabindex="0" aria-label="영상 파일 업로드 영역">
           <strong>MP4 파일을 올려주세요</strong>
           <span>클릭하거나 여기로 드래그하세요.<br>지원 형식: MP4, MOV, M4V, WEBM 등 영상 파일</span>
-        </label>
+          <div style="margin-top:16px; position:relative; z-index:1;">
+            <button id="browseBtn" type="button" class="primary" style="width:auto; min-width:180px;">파일 선택</button>
+          </div>
+        </div>
         <input id="fileInput" type="file" accept="video/*,.mp4,.mov,.m4v,.webm" />
 
         <div class="info-list">
@@ -391,6 +405,7 @@
 
     const fileInput = document.getElementById('fileInput');
     const dropzone = document.getElementById('dropzone');
+    const browseBtn = document.getElementById('browseBtn');
     const fileNameEl = document.getElementById('fileName');
     const fileSizeEl = document.getElementById('fileSize');
     const engineStateEl = document.getElementById('engineState');
@@ -455,25 +470,9 @@
     }
 
     async function loadEngine() {
-      if (location.protocol === 'file:') {
-        engineLoaded = false;
-        engineStateEl.textContent = '실행 방식 오류';
-        convertBtn.disabled = true;
-        setProgress(0);
-        setStatus('브라우저 보안 정책 때문에 file:// 방식에서는 FFmpeg Worker를 로드할 수 없습니다.
-
-해결 방법:
-1) 이 HTML 파일이 있는 폴더에서 터미널 실행
-2) python -m http.server 8000 입력
-3) 브라우저에서 http://localhost:8000 접속
-
-또는 VS Code Live Server로 실행하세요.', true);
-        return;
-      }
-
       try {
       try {
-        setStatus('FFmpeg 엔진 파일을 불러오는 중입니다. 첫 실행은 조금 걸릴 수 있습니다.');
+        setStatus('FFmpeg 엔진 파일을 불러오는 중입니다. GitHub Pages 같은 HTTPS 환경에서도 동작하도록 Worker를 Blob URL로 초기화합니다. 첫 실행은 조금 걸릴 수 있습니다.');
         engineStateEl.textContent = '로딩 중';
         convertBtn.disabled = true;
         setProgress(0);
@@ -590,15 +589,35 @@
       convertBtn.disabled = !(engineLoaded && selectedFile);
 
       if (selectedFile) {
-        setStatus('파일이 준비되었습니다. 변환 버튼을 누르세요.');
+        setStatus('파일이 준비되었습니다. 변환 버튼을 누르세요. 드래그앤드롭과 파일 선택 둘 다 지원합니다.');
       } else {
         setStatus(engineLoaded ? '파일을 선택해주세요.' : '변환 엔진을 불러오는 중입니다.');
       }
     }
 
+    function openFilePicker() {
+      fileInput.click();
+    }
+
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
       if (file) setSelectedFile(file);
+    });
+
+    browseBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openFilePicker();
+    });
+
+    dropzone.addEventListener('click', () => {
+      openFilePicker();
+    });
+
+    dropzone.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openFilePicker();
+      }
     });
 
     ['dragenter', 'dragover'].forEach(evt => {
@@ -618,11 +637,15 @@
     });
 
     dropzone.addEventListener('drop', (e) => {
-      const file = e.dataTransfer?.files?.[0];
-      if (file) {
-        fileInput.files = e.dataTransfer.files;
-        setSelectedFile(file);
+      const files = Array.from(e.dataTransfer?.files || []);
+      const file = files.find(f => (f.type && f.type.startsWith('video/')) || /\.(mp4|mov|m4v|webm|avi|mkv)$/i.test(f.name));
+
+      if (!file) {
+        setStatus('드래그한 파일에서 지원되는 영상 파일을 찾지 못했습니다. MP4/MOV/M4V/WEBM 등을 넣어주세요.', true);
+        return;
       }
+
+      setSelectedFile(file);
     });
 
     loadEngineBtn.addEventListener('click', async () => {
@@ -637,7 +660,7 @@
       setSelectedFile(null);
       setProgress(0);
       resetDownload();
-      setStatus(engineLoaded ? '초기화 완료. 새 파일을 선택해주세요.' : '초기화 완료.');
+      setStatus(engineLoaded ? '초기화 완료. 새 파일을 선택하거나 드래그하세요.' : '초기화 완료.');
     });
 
     loadEngine();
