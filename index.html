@@ -300,9 +300,6 @@
       .section { padding: 18px; }
       .dropzone { min-height: 160px; padding: 22px; }
     }
-      .wrap { width: min(100% - 20px, 980px); margin-top: 20px; }
-      .section { padding: 18px; }
-    }
   </style>
 </head>
 <body>
@@ -471,7 +468,6 @@
 
     async function loadEngine() {
       try {
-      try {
         setStatus('FFmpeg 엔진 파일을 불러오는 중입니다. GitHub Pages 같은 HTTPS 환경에서도 동작하도록 Worker를 Blob URL로 초기화합니다. 첫 실행은 조금 걸릴 수 있습니다.');
         engineStateEl.textContent = '로딩 중';
         convertBtn.disabled = true;
@@ -490,9 +486,9 @@
 
         const coreURL = await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript');
         const wasmURL = await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm');
-        const workerURL = await toBlobURL(`${baseURL}/ffmpeg-core.worker.js`, 'text/javascript');
-
-        await ffmpeg.load({ coreURL, wasmURL, workerURL });
+        
+        // workerURL 로드 제거 (해당 버전에 파일이 없음)
+        await ffmpeg.load({ coreURL, wasmURL });
 
         engineLoaded = true;
         engineStateEl.textContent = '준비 완료';
