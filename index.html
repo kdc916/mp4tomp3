@@ -118,13 +118,13 @@
     }
 
     input[type="file"] {
-      display: none !important;
-      width: 0;
-      height: 0;
-      opacity: 0;
-      pointer-events: none;
-      position: absolute;
+      position: fixed;
       left: -9999px;
+      top: 0;
+      width: 1px;
+      height: 1px;
+      opacity: 0.001;
+      pointer-events: none;
     }
 
     .info-list {
@@ -595,28 +595,51 @@
       }
     }
 
-    function openFilePicker() {
-      fileInput.click();
+    async function openFilePicker() {
+      try {
+        fileInput.value = '';
+
+        if (typeof fileInput.showPicker === 'function') {
+          await fileInput.showPicker();
+          return;
+        }
+
+        fileInput.click();
+      } catch (error) {
+        console.error(error);
+        try {
+          fileInput.click();
+        } catch (fallbackError) {
+          console.error(fallbackError);
+          setStatus('파일 선택 창을 열지 못했습니다. 브라우저 권한 또는 보안 설정을 확인해주세요.', true);
+        }
+      }
     }
 
     fileInput.addEventListener('change', (e) => {
       const file = e.target.files?.[0];
-      if (file) setSelectedFile(file);
+      if (file) {
+        setSelectedFile(file);
+      } else {
+        setStatus(engineLoaded ? '파일 선택이 취소되었습니다.' : '파일 선택이 취소되었습니다.');
+      }
     });
 
-    browseBtn.addEventListener('click', (e) => {
+    browseBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      openFilePicker();
+      await openFilePicker();
     });
 
-    dropzone.addEventListener('click', () => {
-      openFilePicker();
+    dropzone.addEventListener('click', async (e) => {
+      if (e.target === browseBtn) return;
+      await openFilePicker();
     });
 
-    dropzone.addEventListener('keydown', (e) => {
+    dropzone.addEventListener('keydown', async (e) => {
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
-        openFilePicker();
+        await openFilePicker();
       }
     });
 
